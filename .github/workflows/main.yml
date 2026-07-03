@@ -32,13 +32,16 @@ jobs:
             const page = await browser.newPage();
             await page.goto('https://www.freeclash.top/ui/free_clash', { waitUntil:'networkidle', timeout:30000 });
             const html = await page.content();
-            // 匹配 https://www.freeclash.top/v1/sub/ssr/ 开头链接
+            // 打印完整页面源码，看页面里到底有没有目标链接
+            console.log(html);
             const match = html.match(/https:\/\/www\.freeclash\.top\/v1\/sub\/ssr\/[^\s"'<>]+/);
-            console.log(match ? match[0] : '');
+            console.log("匹配结果：", match ? match[0] : "无匹配");
             await browser.close();
           })();
           EOF
-          SUB_URL=$(node getlink.js)
+          SUB_RAW=$(node getlink.js)
+          echo "$SUB_RAW" > page_source.txt
+          SUB_URL=$(echo "$SUB_RAW" | grep -o "https://www.freeclash.top/v1/sub/ssr/[^\s]\+")
           echo "Get sub link: $SUB_URL"
           if [ -z "$SUB_URL" ]; then echo "Link empty, exit"; exit 1; fi
           curl -s --retry 3 "$SUB_URL" -o htmls/free_clash/config.yaml
