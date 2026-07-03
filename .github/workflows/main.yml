@@ -8,8 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -22,7 +20,7 @@ jobs:
           npm i playwright
           npx playwright install chromium --with-deps
 
-      - name: Fetch & debug page source
+      - name: Fetch sub link（自动解随机算术验证）
         run: |
           mkdir -p htmls/free_clash
           cat > getlink.js << 'EOF'
@@ -30,24 +28,39 @@ jobs:
           (async () => {
             const browser = await chromium.launch({ headless: true });
             const page = await browser.newPage();
-            await page.goto('https://www.freeclash.top/ui/free_clash', { waitUntil:'networkidle', timeout:30000 });
+            await page.goto('https://www.freeclash.top/ui/free_clash', { timeout:30000 });
+            await page.waitForSelector('label span', { timeout:10000 });
+            const qText = await page.$eval('label span', el => el.textContent.trim());
+            const mathReg = /(\d+)\s*([+\-])\s*(\d+)/;
+            const matchMath = qText.match(mathReg);
+            let ans = 0;
+            if(matchMath){
+              const n1 = parseInt(matchMath[1]);
+              const op = matchMath[2];
+              const n2 = parseInt(matchMath[3]);
+              ans = op === '+' ? n1 + n2 : n1 - n2;
+            }
+            await page.fill('input[name="answer"]', String(ans));
+            await page.click('button[type="submit"]');
+            await page.waitForLoadState('networkidle', { timeout:30000 });
             const html = await page.content();
-            console.log("====PAGE HTML START====");
-            console.log(html);
-            console.log("====PAGE HTML END====");
-            const match = html.match(/https:\/\/www\.freeclash\.top\/v1\/sub\/ssr\/[^\s"'<>]+/);
-            console.log("匹配链接：", match ? match[0] : "无匹配链接");
+            const subReg = /https:\/\/www\.freeclash\.top\/v1\/sub\/ssr\/[^\s"'<>]+/;
+            const linkMatch = html.match(subReg);
+            console.log(linkMatch ? linkMatch[0] : "");
             await browser.close();
           })();
           EOF
-          # 直接打印输出，不再赋值判断退出，先看页面内容
-          node getlink.js
+          SUB_URL=$(node getlink.js)
+          echo "Get sub link: $SUB_URL"
+          if [ -z "$SUB_URL" ]; then echo "Link empty, exit"; exit 1; fi
+          curl -s --retry 3 "$SUB_URL" -o htmls/free_clash/config.yaml
+          rm -f getlink.js
 
       - name: Commit & push
         run: |
           git config user.name "SubBot"
           git config user.email "bot@github.com"
-          git remote set-url origin https://${{ github.token }}@github.com/${{ github.repository }}.git
-          git add .
-          git commit -m "Debug run" || true
+          # 只添加更新的配置文件，不提交node_modules
+          git add htmls/free_clash/config.yaml
+          git commit -m "Auto update clash config" || true
           git push
