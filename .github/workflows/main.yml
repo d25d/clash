@@ -1,4 +1,7 @@
 name: Update Sub
+# 授予写入仓库权限
+permissions:
+  contents: write
 on:
   schedule:
     - cron: "0 */4 * * *"
@@ -20,7 +23,7 @@ jobs:
           npm i playwright
           npx playwright install chromium --with-deps
 
-      - name: Fetch sub link（自动解随机算术验证）
+      - name: Fetch sub link
         run: |
           mkdir -p htmls/free_clash
           cat > getlink.js << 'EOF'
@@ -60,7 +63,6 @@ jobs:
         run: |
           git config user.name "SubBot"
           git config user.email "bot@github.com"
-          # 只添加更新的配置文件，不提交node_modules
           git add htmls/free_clash/config.yaml
           git commit -m "Auto update clash config" || true
           git push
