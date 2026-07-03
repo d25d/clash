@@ -22,7 +22,7 @@ jobs:
           npm i playwright
           npx playwright install chromium --with-deps
 
-      - name: Fetch dynamic sub link
+      - name: Fetch & debug page source
         run: |
           mkdir -p htmls/free_clash
           cat > getlink.js << 'EOF'
@@ -32,25 +32,22 @@ jobs:
             const page = await browser.newPage();
             await page.goto('https://www.freeclash.top/ui/free_clash', { waitUntil:'networkidle', timeout:30000 });
             const html = await page.content();
-            // 打印完整页面源码，看页面里到底有没有目标链接
+            console.log("====PAGE HTML START====");
             console.log(html);
+            console.log("====PAGE HTML END====");
             const match = html.match(/https:\/\/www\.freeclash\.top\/v1\/sub\/ssr\/[^\s"'<>]+/);
-            console.log("匹配结果：", match ? match[0] : "无匹配");
+            console.log("匹配链接：", match ? match[0] : "无匹配链接");
             await browser.close();
           })();
           EOF
-          SUB_RAW=$(node getlink.js)
-          echo "$SUB_RAW" > page_source.txt
-          SUB_URL=$(echo "$SUB_RAW" | grep -o "https://www.freeclash.top/v1/sub/ssr/[^\s]\+")
-          echo "Get sub link: $SUB_URL"
-          if [ -z "$SUB_URL" ]; then echo "Link empty, exit"; exit 1; fi
-          curl -s --retry 3 "$SUB_URL" -o htmls/free_clash/config.yaml
+          # 直接打印输出，不再赋值判断退出，先看页面内容
+          node getlink.js
 
       - name: Commit & push
         run: |
           git config user.name "SubBot"
           git config user.email "bot@github.com"
           git remote set-url origin https://${{ github.token }}@github.com/${{ github.repository }}.git
-          git add htmls/free_clash/config.yaml
-          git commit -m "Auto update clash config" || true
+          git add .
+          git commit -m "Debug run" || true
           git push
