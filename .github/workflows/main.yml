@@ -1,4 +1,4 @@
-name: main
+name: Update Sub
 on:
   schedule:
     - cron: "0 */4 * * *"
@@ -31,8 +31,10 @@ jobs:
             const browser = await chromium.launch({ headless: true });
             const page = await browser.newPage();
             await page.goto('https://www.freeclash.top/ui/free_clash', { waitUntil:'networkidle', timeout:30000 });
-            const txt = await page.$eval('html>body>div:nth-child(1)>main>section:nth-child(2)>div>div:nth-child(3)>div:nth-child(2)', el=>el.innerText.trim());
-            console.log(txt);
+            const html = await page.content();
+            // 匹配 https://www.freeclash.top/v1/sub/ssr/ 开头链接
+            const match = html.match(/https:\/\/www\.freeclash\.top\/v1\/sub\/ssr\/[^\s"'<>]+/);
+            console.log(match ? match[0] : '');
             await browser.close();
           })();
           EOF
